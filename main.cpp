@@ -38,7 +38,7 @@ int main() {
         
         // Registrar estado atual para o log
         EstadoULA estado;
-        estado.regIR = instrucao;
+        estado.regIR = instrucao; // a palavra é armazenada no IR como definido no projeto
         estado.regPC = PC;
         estado.A = A;
         estado.B = B;
