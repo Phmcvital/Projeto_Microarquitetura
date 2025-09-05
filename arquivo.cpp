@@ -6,10 +6,10 @@
 
 using namespace std;
 
-// Função para converter decimal para string binária de 8 bits
-string paraBinario8bits(int valor) {
+// Função para converter decimal para string binária de 6 bits
+string paraBinario6bits(int valor) {
     // Usa bitset para converter para binário e depois para string
-    bitset<8> bits(valor);
+    bitset<6> bits(valor);
     return bits.to_string();
 }
 
@@ -81,9 +81,9 @@ void salvarLog(const vector<EstadoULA>& log, const string& nomeArquivo) {
     for (const auto& estado : log) {
         arquivo << estado.regPC << "\t"
                 << estado.regIR << "\t"
-                << paraBinario8bits(estado.A) << "\t"
-                << paraBinario8bits(estado.B) << "\t"
-                << paraBinario8bits(estado.S) << "\t"
+                << paraBinario6bits(estado.A) << "\t"
+                << paraBinario6bits(estado.B) << "\t"
+                << paraBinario6bits(estado.S) << "\t"
                 << estado.Carry << endl;
     }
     

@@ -24,11 +24,11 @@ ResultadoULA execULA(SinaisdeControle sinais, int A, int B){
     ResultadoULA r{0,0};
 
     // Normaliza entradas (0..255) dependendo do enable, mantendo os 8 bits significativos
-    int entrada_A = sinais.ENA ? (A & 0xFF) : 0;
-    int entrada_B = sinais.ENB ? (B & 0xFF) : 0;
+    int entrada_A = sinais.ENA ? (A & 0x3F) : 0;
+    int entrada_B = sinais.ENB ? (B & 0x3F) : 0;
 
     // Aplica INVA caso esteja ativo
-    if (sinais.INVA) entrada_A = (~entrada_A) & 0xFF;
+    if (sinais.INVA) entrada_A = (~entrada_A) & 0x3F;
 
     // Resultado base dependendo da combinação f0 f1
     int resultado_base = 0;
@@ -45,11 +45,11 @@ ResultadoULA execULA(SinaisdeControle sinais, int A, int B){
     // Aplica incremento no resultado caso esteja ativo
     int resultado_final = resultado_base + (sinais.INC ? 1 : 0);
 
-    // Se o resultado final estourar 255 bits, carry ativou
-    r.Carry = (resultado_final > 255) ? 1 : 0;
+    // Se o resultado final estourar 64 bits, carry ativou
+    r.Carry = (resultado_final > 63) ? 1 : 0;
 
-    // Saída 8 bits ( & 0xff mantem apenas os 8 bits signicativos do resultado final)
-    r.Saida = resultado_final & 0xFF;
+    // Saída 8 bits ( & 0xff mantem apenas os 6 bits signicativos do resultado final)
+    r.Saida = resultado_final & 0x3F;
 
     return r;
 }
