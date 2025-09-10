@@ -8,7 +8,7 @@ int main() {
     cout << "=== ETAPA 1 - ULA ===" << endl << endl;
     
     // a e b ativos como definido nos requisitos do projeto
-    int A = 1;
+    int A = -1;
     int B = 1;
     
     cout << "Lendo instrucoes..." << endl;
@@ -40,7 +40,7 @@ int main() {
         EstadoULA estado;
         estado.regIR = instrucao; // a palavra é armazenada no IR como definido no projeto
         estado.regPC = PC;
-        estado.A = A;
+        estado.A = A;  
         estado.B = B;
         estado.S = resultado.Saida;
         estado.Carry = resultado.Carry;

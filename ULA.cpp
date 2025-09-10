@@ -7,8 +7,8 @@ int charParaInt(char c) {
     return (c == '1') ? 1 : 0;
 }
 
-// Extrai os sinais de controle a partir da instrução (6 bits: na ordem -> inc inva enb ena f1 f0)
-SinaisdeControle extrairInstrucao(string inst){
+// Extrai os sinais de controle a partir da instrução (6 bits: inc inva enb ena f1 f0)
+SinaisdeControle extrairInstrucao(string inst) {
     SinaisdeControle sinais;
     sinais.INC = charParaInt(inst[5]);
     sinais.INVA = charParaInt(inst[4]);
@@ -20,36 +20,55 @@ SinaisdeControle extrairInstrucao(string inst){
 }
 
 // Executa a ULA com os sinais de controle e entradas A e B
-ResultadoULA execULA(SinaisdeControle sinais, int A, int B){
+ResultadoULA execULA(SinaisdeControle sinais, int A, int B) {
     ResultadoULA r{0,0};
 
-    // Normaliza entradas (0..255) dependendo do enable, mantendo os 8 bits significativos
-    int entrada_A = sinais.ENA ? (A & 0x3F) : 0;
-    int entrada_B = sinais.ENB ? (B & 0x3F) : 0;
-
-    // Aplica INVA caso esteja ativo
-    if (sinais.INVA) entrada_A = (~entrada_A) & 0x3F;
-
-    // Resultado base dependendo da combinação f0 f1
-    int resultado_base = 0;
-    if (sinais.F0 == 0 && sinais.F1 == 0) {
-        resultado_base = entrada_A & entrada_B;
-    } else if (sinais.F0 == 0 && sinais.F1 == 1) {
-        resultado_base = entrada_A | entrada_B;
-    } else if (sinais.F0 == 1 && sinais.F1 == 0) {
-        resultado_base = entrada_A ^ entrada_B;
-    } else if (sinais.F0 == 1 && sinais.F1 == 1) {
-        resultado_base = entrada_A + entrada_B;
+    // Normaliza entradas dependendo do enable
+    int entrada_A = A;
+    if (sinais.ENA == 0){
+        entrada_A = 0; // disable A
     }
-
-    // Aplica incremento no resultado caso esteja ativo
-    int resultado_final = resultado_base + (sinais.INC ? 1 : 0);
-
-    // Se o resultado final estourar 64 bits, carry ativou
-    r.Carry = (resultado_final > 63) ? 1 : 0;
-
-    // Saída 8 bits ( & 0xff mantem apenas os 6 bits signicativos do resultado final)
-    r.Saida = resultado_final & 0x3F;
+    
+    // Selecionar valor para registrador B (igual ao primeiro código)
+    int entrada_B = B;
+    if (sinais.ENB == 0){
+        entrada_B = 0; // disable B
+    }
+    
+    // Aplica INVA 
+    if (sinais.INVA == 1) {
+        entrada_A = ~entrada_A;
+    }
+    
+    // Configura vai_um para INC 
+    int co = 0;
+    if (sinais.INC == 1) {
+        co= 1;
+    }
+    // Resultado base dependendo da combinação f0 f1
+    if (sinais.F0 == 0 && sinais.F1 == 0) {
+        r.Saida = entrada_A & entrada_B;
+        r.Carry = 0;
+    } else if (sinais.F0 == 0 && sinais.F1 == 1) {
+        r.Saida = entrada_A | entrada_B;
+        r.Carry = 0;
+    } else if (sinais.F0 == 1 && sinais.F1 == 0) {
+        r.Saida = entrada_A ^ entrada_B;
+        r.Carry = 0;
+    } else if (sinais.F0 == 1 && sinais.F1 == 1) {
+        /*signed long long soma = (unsigned long long)(unsigned int)entrada_A + 
+                                 (unsigned long long)(unsigned int)entrada_B + 
+                                 co;
+        r.Saida = static_cast<int>(soma);*/
+        unsigned int a_u = static_cast<unsigned int>(entrada_A);
+        unsigned int b_u = static_cast<unsigned int>(entrada_B);
+        unsigned int soma_u = a_u + b_u + co;
+        r.Saida = static_cast<int>(soma_u);
+        
+        // Carry = 1 se houve overflow (soma > máximo unsigned de 32 bits)
+        r.Carry = (soma_u < a_u || (soma_u == a_u && b_u + co> 0)) ? 1 : 0;
+       //.Carry = (soma > 0xFFFFFFFF) ? 1 : 0;
+    }
 
     return r;
 }
