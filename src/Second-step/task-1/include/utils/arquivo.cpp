@@ -1,0 +1,59 @@
+#include "arquivo.h"
+
+using namespace std;
+
+// Função para converter decimal para string binária de 6 bits
+string paraBinario32bits(int valor) {
+    // Usa bitset para converter para binário e depois para string
+    bitset<32> bits(valor);
+    return bits.to_string();
+}
+
+
+vector <string> lerArquivo(const string &nomeArquivo,const string &nomeArquivoSaida){
+    vector <string> instrucoes;
+    ifstream arquivo(nomeArquivo);
+    ofstream arquivoSaida(nomeArquivoSaida);
+    string linha;
+
+    if (!arquivo.is_open()) {
+        cerr << "Não foi possível abrir o arquivo '" << nomeArquivo << "'" << endl;
+        return instrucoes;
+    }
+
+    int numerodaLinha = 1;
+    while (getline(arquivo, linha)) {
+        size_t inicio = linha.find_first_not_of(" \t");
+        size_t fim = linha.find_last_not_of(" \t");
+        
+        if (inicio != string::npos && fim != string::npos) {
+            linha = linha.substr(inicio, fim - inicio + 1);
+        }
+
+        if (linha.length() == 8) {
+            bool continuar = true;
+            for (char c : linha) {
+                if (c != '0' && c != '1') {
+                    continuar = false;
+                    break;
+                }
+            }
+
+            if (continuar) {
+                instrucoes.push_back(linha);
+            } else {
+                cerr << "Linha " << numerodaLinha << " contém caracteres inválidos: " << linha << endl;
+                arquivoSaida << "Linha " << numerodaLinha << " contém caracteres inválidos: " << linha << endl;
+            }
+        } else if (!linha.empty()) {
+            cerr << "Linha " << numerodaLinha << " ignorada por (tamanho incorreto): " << linha << endl;
+            arquivoSaida << "Linha " << numerodaLinha << " ignorada por (tamanho incorreto): " << linha << endl;
+        }
+        
+        numerodaLinha++;
+    }
+    
+    arquivo.close();
+    arquivoSaida.close();
+    return instrucoes;
+}
