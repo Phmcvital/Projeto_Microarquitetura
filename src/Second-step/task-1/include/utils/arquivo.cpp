@@ -1,16 +1,12 @@
 #include "arquivo.h"
 
-using namespace std;
-
-// Função para converter decimal para string binária de 6 bits
 string paraBinario32bits(int valor) {
     // Usa bitset para converter para binário e depois para string
     bitset<32> bits(valor);
     return bits.to_string();
 }
 
-
-vector <string> lerArquivo(const string &nomeArquivo,const string &nomeArquivoSaida){
+vector <string> lerArquivo(const string &nomeArquivo, const string &nomeArquivoSaida){
     vector <string> instrucoes;
     ifstream arquivo(nomeArquivo);
     ofstream arquivoSaida(nomeArquivoSaida);
@@ -30,6 +26,10 @@ vector <string> lerArquivo(const string &nomeArquivo,const string &nomeArquivoSa
             linha = linha.substr(inicio, fim - inicio + 1);
         }
 
+        if (!linha.empty() && linha.back() == '\r') {
+            linha.pop_back();
+        }        
+
         if (linha.length() == 8) {
             bool continuar = true;
             for (char c : linha) {
@@ -46,8 +46,8 @@ vector <string> lerArquivo(const string &nomeArquivo,const string &nomeArquivoSa
                 arquivoSaida << "Linha " << numerodaLinha << " contém caracteres inválidos: " << linha << endl;
             }
         } else if (!linha.empty()) {
-            cerr << "Linha " << numerodaLinha << " ignorada por (tamanho incorreto): " << linha << endl;
-            arquivoSaida << "Linha " << numerodaLinha << " ignorada por (tamanho incorreto): " << linha << endl;
+            cerr << "Linha " << numerodaLinha << " ignorada por (tamanho incorreto: " << linha.length() << "): " << linha << endl;
+            arquivoSaida << "Linha " << numerodaLinha << " ignorada por (tamanho incorreto: " << linha.length() << "): " << linha << endl;
         }
         
         numerodaLinha++;
@@ -56,4 +56,14 @@ vector <string> lerArquivo(const string &nomeArquivo,const string &nomeArquivoSa
     arquivo.close();
     arquivoSaida.close();
     return instrucoes;
+}
+
+void writeLineInFile(string nomeArquivo, string linha) {
+    ofstream arquivo(nomeArquivo, ios::app); // Abre para adicionar no final
+    if (!arquivo.is_open()) {
+        cerr << "Não foi possível abrir o arquivo '" << nomeArquivo << "'" << endl;
+        return;
+    }
+    arquivo << linha << endl;
+    arquivo.close();
 }

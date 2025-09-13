@@ -24,6 +24,7 @@ struct EstadoULA {
 // Funções
 int charParaInt(char c);
 void execTask(const string input, const string output);
+void saveLog(vector<EstadoULA> log, string nomeArquivo);
 EstadoULA controlOperation(const SinaisdeControle control);
 vector<SinaisdeControle> readSinaisdeControle(const string input);
 vector<SinaisdeControle> extractInstruction(vector<string> inst);
