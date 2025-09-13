@@ -50,12 +50,12 @@ EstadoULA controlOperation(const SinaisdeControle control, EstadoULA& ULAState){
         result.S = A & B;
         result.Carry = 0;
 
-    }else if (control.F0 == 1 && control.F1 == 0)
+    }else if (control.F0 == 0 && control.F1 == 1)
     {
         result.S = A | B;
         result.Carry = 0;
 
-    }else if (control.F0 == 0 && control.F1 == 1)
+    }else if (control.F0 == 1 && control.F1 == 0)
     {
         result.S = A ^ B;
         result.Carry = 0;
@@ -64,7 +64,7 @@ EstadoULA controlOperation(const SinaisdeControle control, EstadoULA& ULAState){
     {
         result.S = A + B + ULAState.Carry;
         result.Carry = ((unsigned long long)A + (unsigned long long)B // * unsigned long long para previnir overflow na soma antes da comparação
-                        + (unsigned long long)ULAState.Carry > 0xFFFFFFFF) ? 1 : 0;
+            + (unsigned long long)ULAState.Carry > 0xFFFFFFFF) ? 1 : 0;
     }
 
     //Operações de shift
@@ -111,8 +111,8 @@ void execTask(const string input, const string output){
     {
         ULAState.regPC = PC;
         ULAState.regIR = to_string(var.SLL8) + to_string(var.SRA1) + to_string(var.F1) 
-                        + to_string(var.F0) + to_string(var.ENA) + to_string(var.ENB) 
-                        + to_string(var.INVA) + to_string(var.INC);
+            + to_string(var.F0) + to_string(var.ENA) + to_string(var.ENB) 
+            + to_string(var.INVA) + to_string(var.INC);
 
         result = controlOperation(var, ULAState);
         ULAState.S = result.S;
