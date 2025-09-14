@@ -44,6 +44,9 @@ EstadoULA controlOperation(const SinaisdeControle control, EstadoULA& ULAState){
         A = 0;
     if (control.ENB == 0)
         B = 0;
+    if (control.INVA == 1)
+        A = ~A;
+    
 
     if (control.F0 == 0 && control.F1 == 0)
     {
