@@ -1,18 +1,18 @@
 #include <iostream>
 #include <vector>
-#include "arquivo.h" 
+#include "../include/arquivo.h"
 
 using namespace std;
 
 int main() {
     cout << "=== ETAPA 1 - ULA ===" << endl << endl;
     
-    // a e b ativos como definido nos requisitos do projeto
+    // a e b como definido nos requisitos do projeto
     int A = -1;
     int B = 1;
     
     cout << "Lendo instrucoes..." << endl;
-    vector<string> instrucoes = lerArquivo("programa_etapa1.txt");
+    vector<string> instrucoes = lerArquivo("input/programa_etapa1.txt");
     // guardar as entradas como instrucoes
 
     if (instrucoes.empty()) {
@@ -51,9 +51,8 @@ int main() {
         // incrementa o PC passando para a próxima instrucao 
     }
     
-    // 3. Salvar log de execução
     cout << "Gerando arquivo de log..." << endl;
-    salvarLog(log, "saida_etapa1.txt");
+    salvarLog(log, "output/saida_etapa1.txt");
     
     cout << endl << "Encerrando." << endl;
     

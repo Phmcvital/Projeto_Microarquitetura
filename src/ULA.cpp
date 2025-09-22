@@ -1,4 +1,4 @@
-#include "ULA.h"
+#include "../include/ULA.h"
 #include <iostream>
 using namespace std;
 
@@ -7,7 +7,7 @@ int charParaInt(char c) {
     return (c == '1') ? 1 : 0;
 }
 
-// Extrai os sinais de controle a partir da instrução (6 bits: inc inva enb ena f1 f0)
+// Extrai os sinais de controle a partir da instrução (6 bits: f0 f1 ena enb inva inc)
 SinaisdeControle extrairInstrucao(string inst) {
     SinaisdeControle sinais;
     sinais.INC = charParaInt(inst[5]);
@@ -19,20 +19,17 @@ SinaisdeControle extrairInstrucao(string inst) {
     return sinais;
 }
 
-// Executa a ULA com os sinais de controle e entradas A e B
 ResultadoULA execULA(SinaisdeControle sinais, int A, int B) {
     ResultadoULA r{0,0};
 
-    // Normaliza entradas dependendo do enable
     int entrada_A = A;
     if (sinais.ENA == 0){
-        entrada_A = 0; // disable A
+        entrada_A = 0; 
     }
     
-    // Selecionar valor para registrador B (igual ao primeiro código)
     int entrada_B = B;
     if (sinais.ENB == 0){
-        entrada_B = 0; // disable B
+        entrada_B = 0; 
     }
     
     // Aplica INVA 
@@ -43,7 +40,7 @@ ResultadoULA execULA(SinaisdeControle sinais, int A, int B) {
     // Configura vai_um para INC 
     int co = 0;
     if (sinais.INC == 1) {
-        co= 1;
+        co = 1;
     }
     // Resultado base dependendo da combinação f0 f1
     if (sinais.F0 == 0 && sinais.F1 == 0) {
@@ -56,18 +53,15 @@ ResultadoULA execULA(SinaisdeControle sinais, int A, int B) {
         r.Saida = entrada_A ^ entrada_B;
         r.Carry = 0;
     } else if (sinais.F0 == 1 && sinais.F1 == 1) {
-        /*signed long long soma = (unsigned long long)(unsigned int)entrada_A + 
-                                 (unsigned long long)(unsigned int)entrada_B + 
-                                 co;
-        r.Saida = static_cast<int>(soma);*/
-        unsigned int a_u = static_cast<unsigned int>(entrada_A);
-        unsigned int b_u = static_cast<unsigned int>(entrada_B);
-        unsigned int soma_u = a_u + b_u + co;
-        r.Saida = static_cast<int>(soma_u);
-        
-        // Carry = 1 se houve overflow (soma > máximo unsigned de 32 bits)
-        r.Carry = (soma_u < a_u || (soma_u == a_u && b_u + co> 0)) ? 1 : 0;
-       //.Carry = (soma > 0xFFFFFFFF) ? 1 : 0;
+        // soma a, b e o incremento como unsigned para detectar carry
+        unsigned int soma_temp = static_cast<unsigned int>(entrada_A)
+                    + static_cast<unsigned int>(entrada_B) + co;
+
+        r.Saida = static_cast<int>(soma_temp);
+
+        // a soma ultrapassou o limite de 32 bits, o resultado fica menor que 1 dos operandos
+        // carry é setado
+        r.Carry = (soma_temp < static_cast<unsigned int>(entrada_A));
     }
 
     return r;
