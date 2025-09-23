@@ -25,6 +25,8 @@ struct SinaisCompletos {
     SinaisdeControle ULA;        // 8 bits
     int barramentoC;             // 9 bits 
     int barramentoB;             // 4 bits
+    bool read; // 1 bit
+    bool write; // 1 bit
 };
 
 // Estado da ULA e operandos
