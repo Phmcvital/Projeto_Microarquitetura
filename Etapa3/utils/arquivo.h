@@ -11,3 +11,5 @@ using namespace std;
 vector<string> lerArquivo(const string& nomeArquivo, const string &nomeArquivoSaida);
 void writeLineInFile(string nomeArquivo, string linha);
 string paraBinario32bits(int valor);
+
+vector<string> lerLinhasDeArquivo(const string& nomeArquivo);

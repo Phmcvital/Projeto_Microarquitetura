@@ -67,3 +67,27 @@ void writeLineInFile(string nomeArquivo, string linha) {
     arquivo << linha << endl;
     arquivo.close();
 }
+
+vector<string> lerLinhasDeArquivo(const string& nomeArquivo) {
+    vector<string> linhas;
+    ifstream arquivo(nomeArquivo);
+    string linha;
+
+    if (!arquivo.is_open()) {
+        cerr << "Não foi possível abrir o arquivo '" << nomeArquivo << "'" << endl;
+        return linhas; // Retorna um vetor vazio
+    }
+
+    // Lê cada linha do arquivo
+    while (getline(arquivo, linha)) {
+        // Opcional: Remove espaços em branco no início e no fim
+        size_t inicio = linha.find_first_not_of(" \t\r\n");
+        size_t fim = linha.find_last_not_of(" \t\r\n");
+        if (inicio != string::npos) {
+            linhas.push_back(linha.substr(inicio, fim - inicio + 1));
+        }
+    }
+    
+    arquivo.close();
+    return linhas;
+}

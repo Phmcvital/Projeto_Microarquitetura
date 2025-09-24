@@ -2,13 +2,17 @@
 // Construtor que inicializa a memória a partir de um arquivo
 Memoria::Memoria(const std::string& arquivo_dados) {
     std::ifstream file(arquivo_dados);
-    
-    uint32_t valor;
-    while (file >> valor) {
-        this->dados.push_back(valor);
+
+    std::string linha_binaria;
+    while (getline(file, linha_binaria)) {
+        if (linha_binaria.length() == 32) {
+            uint32_t valor = std::stoul(linha_binaria, nullptr, 2);
+            this->dados.push_back(valor);
+        }
     }
     file.close();
 }
+
 
 // Função de leitura
 

@@ -1,0 +1,108 @@
+CICLO 2
+PC: 1
+IR: 00110100001000010010111
+
+MBR: 00000000
+
+ESTADO DA MEMÓRIA APÓS O CICLO:
+--- Estado da Memória de Dados ---
+Endereço 0: 0
+Endereço 1: 1
+Endereço 2: 2
+Endereço 3: 4
+Endereço 4: 8
+Endereço 5: 0
+Endereço 6: 0
+Endereço 7: 0
+Endereço 8: 0
+Endereço 9: 0
+Endereço 10: 0
+Endereço 11: 0
+Endereço 12: 0
+Endereço 13: 0
+Endereço 14: 0
+Endereço 15: 0
+----------------------------------
+
+====================================================================================================
+CICLO 2
+PC: 1
+IR: 00110100001000010010111
+
+MBR: 00000000
+
+ESTADO DA MEMÓRIA APÓS O CICLO:
+--- Estado da Memória de Dados ---
+Endereço 0: 0
+Endereço 1: 1
+Endereço 2: 2
+Endereço 3: 4
+Endereço 4: 8
+Endereço 5: 0
+Endereço 6: 0
+Endereço 7: 0
+Endereço 8: 0
+Endereço 9: 0
+Endereço 10: 0
+Endereço 11: 0
+Endereço 12: 0
+Endereço 13: 0
+Endereço 14: 0
+Endereço 15: 0
+----------------------------------
+
+====================================================================================================
+CICLO 2
+PC: 2
+IR: 00110100011000010011000
+
+MBR: 10011001
+
+ESTADO DA MEMÓRIA APÓS O CICLO:
+--- Estado da Memória de Dados ---
+Endereço 0: 0
+Endereço 1: 1
+Endereço 2: 2
+Endereço 3: 4
+Endereço 4: 8
+Endereço 5: 0
+Endereço 6: 0
+Endereço 7: 0
+Endereço 8: 0
+Endereço 9: 0
+Endereço 10: 0
+Endereço 11: 0
+Endereço 12: 0
+Endereço 13: 0
+Endereço 14: 0
+Endereço 15: 0
+----------------------------------
+
+====================================================================================================
+CICLO 6
+PC: 5
+IR: 00110100001000000000000
+
+MBR: 10011001
+
+ESTADO DA MEMÓRIA APÓS O CICLO:
+--- Estado da Memória de Dados ---
+Endereço 0: 0
+Endereço 1: 1
+Endereço 2: 2
+Endereço 3: 4
+Endereço 4: 8
+Endereço 5: 0
+Endereço 6: 0
+Endereço 7: 0
+Endereço 8: 0
+Endereço 9: 0
+Endereço 10: 0
+Endereço 11: 0
+Endereço 12: 0
+Endereço 13: 0
+Endereço 14: 0
+Endereço 15: 0
+----------------------------------
+
+====================================================================================================

@@ -1,4 +1,7 @@
 #include "ULA.h"
+#include <sstream>
+#include <cstdint>
+#include "Memoria.h"
 
 int charParaInt(char c) {
     return (c == '1') ? 1 : 0;
@@ -9,7 +12,7 @@ vector<SinaisCompletos> extractInstructionCompleta(vector<string> inst) {
     vector<SinaisCompletos> inputData;
     
     for(auto var : inst) {
-        if(var.length() != 21) continue;
+        if(var.length() != 23) continue;
         
         SinaisCompletos data;
         
@@ -28,13 +31,16 @@ vector<SinaisCompletos> extractInstructionCompleta(vector<string> inst) {
         for(int i = 0; i < 9; i++) {
             data.barramentoC |= (charParaInt(var[8 + i]) << (8 - i));
         }
+        // 2 bits de read e write (bits 17-18)
+        data.read = (var[17] == '1');
+        data.write = (var[18] == '1');
         
-        // 4 bits do barramento B (bits 17-20)
+        // 4 bits do barramento B (bits 19-22)
         data.barramentoB = 0;
         for(int i = 0; i < 4; i++) {
-            data.barramentoB |= (charParaInt(var[17 + i]) << (3 - i));
+            data.barramentoB |= (charParaInt(var[19 + i]) << (3 - i));
         }
-        
+
         inputData.push_back(data);
     }
     
@@ -175,74 +181,74 @@ EstadoULA controlOperation(const SinaisdeControle control, EstadoULA& ULAState){
 }
 
 // Execução da tarefa modificada
-void execTask(const string input, const string output){
-    vector<SinaisCompletos> inputData = readSinaisCompletos(input, output);
+void execTask(vector<SinaisCompletos>& inputData, Registradores& regs, Memoria& mem, const string& output) {
     vector<EstadoULA> log;
-    
-    if (inputData.empty()) {
-        cerr << "Nenhuma instrução válida encontrada no arquivo de entrada." << endl;
-        return;
-    }
-    
-    // Inicialização dos registradores COM VALORES DE TESTE
     EstadoULA ULAState;
-    ULAState.regs.H = 10;      // Valores de teste
-    ULAState.regs.OPC = 0;
-    ULAState.regs.TOS = 5;
-    ULAState.regs.CPP = 0;
-    ULAState.regs.LV = 15;
-    ULAState.regs.SP = 0;
-    ULAState.regs.PC = 0;
-    ULAState.regs.MDR = 20;
-    ULAState.regs.MAR = 0;
-    ULAState.regs.MBR = 0;
-    
+    ULAState.regs = regs; // Usa o estado inicial dos registradores
+
     int ciclo = 0;
-    
-    for(auto instrucao : inputData) {
-        // Salvar estado inicial para o log
+
+    for (const auto& instrucao : inputData) {
         Registradores estadoInicialRegs = ULAState.regs;
-        
-        // Formar IR de 21 bits
+
+        // --- Formar IR de 23 bits para o log (SEU ESTILO) ---
         string ir = "";
         ir += to_string(instrucao.ULA.SLL8) + to_string(instrucao.ULA.SRA1);
         ir += to_string(instrucao.ULA.F0) + to_string(instrucao.ULA.F1);
         ir += to_string(instrucao.ULA.ENA) + to_string(instrucao.ULA.ENB);
         ir += to_string(instrucao.ULA.INVA) + to_string(instrucao.ULA.INC);
         
-        // Adicionar bits do barramento C (9 bits)
-        for(int i = 8; i >= 0; i--) {
+        for(int i = 8; i >= 0; i--) { // Barramento C
             ir += to_string((instrucao.barramentoC >> i) & 1);
         }
         
-        // Adicionar bits do barramento B (4 bits)  
-        for(int i = 3; i >= 0; i--) {
+        ir += to_string(instrucao.write) + to_string(instrucao.read); // Memória
+
+        for(int i = 3; i >= 0; i--) { // Barramento B
             ir += to_string((instrucao.barramentoB >> i) & 1);
         }
-        
-        // Configurar entradas da ULA
-        ULAState.A = ULAState.regs.H;  // A sempre vem de H
+
+        // --- CASO ESPECIAL: FETCH ---
+        if (instrucao.read && instrucao.write) {
+            string byte_imediato_str = ir.substr(0, 8);
+            uint8_t byte_imediato = 0;
+            for(int i = 0; i < 8; i++) {
+                byte_imediato |= (charParaInt(byte_imediato_str[i]) << (7-i));
+            }
+            
+            ULAState.regs.MBR = byte_imediato;
+            ULAState.regs.H = static_cast<uint32_t>(ULAState.regs.MBR);
+            ciclo++;
+            continue; 
+        }
+
+        // --- CICLO NORMAL ---
+        ULAState.A = ULAState.regs.H;
         ULAState.B = decodificadorBarramentoB(instrucao.barramentoB, ULAState.regs);
-        
-        // Obter nomes dos registradores ANTES da operação
+
         ULAState.registradorB = getRegistradorBNome(instrucao.barramentoB);
         vector<string> nomesC = getRegistradoresCNomes(instrucao.barramentoC);
         ULAState.registradoresC = "";
-        for(size_t i = 0; i < nomesC.size(); i++) {
+        for (size_t i = 0; i < nomesC.size(); i++) {
             ULAState.registradoresC += nomesC[i];
-            if(i < nomesC.size() - 1) ULAState.registradoresC += ",";
+            if (i < nomesC.size() - 1) ULAState.registradoresC += ",";
         }
         
-        // Executar operação na ULA
         EstadoULA result = controlOperation(instrucao.ULA, ULAState);
         
-        // Atualizar registradores habilitados no barramento C
         vector<int> habilitados = seletorBarramentoC(instrucao.barramentoC);
         atualizarRegistradores(ULAState.regs, result.S, habilitados);
-        
-        // Preparar dados para o log
+
+        // --- LÓGICA DE MEMÓRIA ---
+        if (instrucao.write) {
+            mem.escrever(ULAState.regs.MAR, ULAState.regs.MDR);
+        } else if (instrucao.read) {
+            ULAState.regs.MDR = mem.ler(ULAState.regs.MAR);
+        }
+
+        // --- PREPARAR LOG ---
         EstadoULA estadoParaLog;
-        estadoParaLog.regs = estadoInicialRegs; // Estado inicial
+        estadoParaLog.regs = estadoInicialRegs;
         estadoParaLog.S = result.S;
         estadoParaLog.Carry = result.Carry;
         estadoParaLog.N = result.N;
@@ -254,83 +260,130 @@ void execTask(const string input, const string output){
         estadoParaLog.A = ULAState.A;
         estadoParaLog.B = ULAState.B;
         
-        // Adicionar estado final dos registradores
         estadoParaLog.regs = ULAState.regs;
         
         log.push_back(estadoParaLog);
         ciclo++;
     }
-    
-    saveLog(log, output);
+
+    regs = ULAState.regs;
+    saveLog(log, output, mem); 
 }
 
 // Função de salvar log
-void saveLog(vector<EstadoULA> log, string output) {
-    // Limpar arquivo de saída
-    ofstream limpar(output, ios::trunc);
-    limpar.close();
-    
-    string linha = string(200, '=');
-    
-    writeLineInFile(output, "Início do programa - Etapa 2 Tarefa 2");
-    writeLineInFile(output, linha);
-    
-    for (size_t i = 0; i < log.size(); i++) {
-        const auto& estado = log[i];
-        
-        writeLineInFile(output, "CICLO " + to_string(i + 1));
-        writeLineInFile(output, "PC: " + to_string(estado.regPC));
-        writeLineInFile(output, "IR: " + estado.regIR);
-        writeLineInFile(output, "");
-        
-        // Estado inicial dos registradores
-        writeLineInFile(output, "REGISTRADORES INICIAL:");
-        writeLineInFile(output, "H: " + paraBinario32bits(estado.regs.H));
-        writeLineInFile(output, "OPC: " + paraBinario32bits(estado.regs.OPC));
-        writeLineInFile(output, "TOS: " + paraBinario32bits(estado.regs.TOS));
-        writeLineInFile(output, "CPP: " + paraBinario32bits(estado.regs.CPP));
-        writeLineInFile(output, "LV: " + paraBinario32bits(estado.regs.LV));
-        writeLineInFile(output, "SP: " + paraBinario32bits(estado.regs.SP));
-        writeLineInFile(output, "MBR: " + bitset<8>(estado.regs.MBR).to_string());
-        writeLineInFile(output, "PC: " + paraBinario32bits(estado.regs.PC));
-        writeLineInFile(output, "MDR: " + paraBinario32bits(estado.regs.MDR));
-        writeLineInFile(output, "MAR: " + paraBinario32bits(estado.regs.MAR));
-        writeLineInFile(output, "");
-        
-        // MOSTRAR OS VALORES DE A e B que entraram na ULA
-        writeLineInFile(output, "ENTRADAS ULA:");
-        writeLineInFile(output, "A (H): " + paraBinario32bits(estado.A));
-        writeLineInFile(output, "B (" + estado.registradorB + "): " + paraBinario32bits(estado.B));
-        writeLineInFile(output, "");
-        
-        writeLineInFile(output, "BARRAMENTO B: " + estado.registradorB);
-        writeLineInFile(output, "BARRAMENTO C: " + estado.registradoresC);
-        writeLineInFile(output, "");
-        
-        writeLineInFile(output, "RESULTADO ULA:");
-        writeLineInFile(output, "S: " + paraBinario32bits(estado.S));
-        writeLineInFile(output, "Carry: " + to_string(estado.Carry));
-        writeLineInFile(output, "N: " + to_string(estado.N));
-        writeLineInFile(output, "Z: " + to_string(estado.Z));
-        writeLineInFile(output, "");
-
-        // Estado depois dos registradores
-        writeLineInFile(output, "REGISTRADORES FINAL:");
-        writeLineInFile(output, "H: " + paraBinario32bits(estado.regs.H));
-        writeLineInFile(output, "OPC: " + paraBinario32bits(estado.regs.OPC));
-        writeLineInFile(output, "TOS: " + paraBinario32bits(estado.regs.TOS));
-        writeLineInFile(output, "CPP: " + paraBinario32bits(estado.regs.CPP));
-        writeLineInFile(output, "LV: " + paraBinario32bits(estado.regs.LV));
-        writeLineInFile(output, "SP: " + paraBinario32bits(estado.regs.SP));
-        writeLineInFile(output, "MBR: " + bitset<8>(estado.regs.MBR).to_string());
-        writeLineInFile(output, "PC: " + paraBinario32bits(estado.regs.PC));
-        writeLineInFile(output, "MDR: " + paraBinario32bits(estado.regs.MDR));
-        writeLineInFile(output, "MAR: " + paraBinario32bits(estado.regs.MAR));
-        writeLineInFile(output, "");
-
-        writeLineInFile(output, linha);
+void saveLog(vector<EstadoULA>& log, const string& output, Memoria& mem) {
+    ofstream log_file(output, ios::app);
+    if (!log_file.is_open()) {
+        cerr << "Erro ao abrir o arquivo de log: " << output << endl;
+        return;
     }
+
+    string linha_sep(100, '=');
     
-    cout << "Log salvo em: " << output << endl;
+    // Log de um ciclo
+    const auto& estado = log.back();
+        
+    log_file << "CICLO " << log.size() << "\n";
+    log_file << "PC: " << estado.regPC << "\n";
+    log_file << "IR: " << estado.regIR << "\n\n";
+    
+
+    string mbr_bin = "";
+    for (int i = 7; i >= 0; --i) {
+        mbr_bin += to_string((estado.regs.MBR >> i) & 1);
+    }
+    log_file << "MBR: " << mbr_bin << "\n";
+    // ...
+    
+    // --- NOVO: LOG DA MEMÓRIA ---
+    log_file << "\nESTADO DA MEMÓRIA APÓS O CICLO:\n";
+    mem.log(log_file);
+
+    log_file << linha_sep << "\n";
+    
+    log_file.close();
 }
 
+// Funções de tradução
+
+vector<uint32_t> traduzir_iload(int x) {
+    vector<uint32_t> microcodigo;
+    // Usamos o prefixo 0b para definir as microinstruções diretamente como inteiros
+    // Formato: [8 ULA][9 C][2 Mem][4 B]
+    microcodigo.push_back(0b00100100100000000000101); // H = LV
+    for (int i = 0; i < x; ++i) {
+        microcodigo.push_back(0b00110101100000000001000); // H = H + 1
+    }
+    microcodigo.push_back(0b00110100000000001011000); // MAR = H; rd
+    microcodigo.push_back(0b00110101000001001100100); // MAR = SP = SP + 1; wr
+    microcodigo.push_back(0b00110100001000000000000); // TOS = MDR
+    return microcodigo;
+}
+
+vector<uint32_t> traduzir_bipush(const string& byte_str) {
+    vector<uint32_t> microcodigo;
+    microcodigo.push_back(0b00110101000001001000100); // SP = MAR = SP + 1
+
+    // Construção dinâmica da instrução FETCH
+    uint8_t byte_valor = 0;
+    for(int i = 0; i < 8; ++i) {
+        byte_valor |= (charParaInt(byte_str[i]) << (7 - i));
+    }
+    
+    // A parte fixa da instrução (C=0, Mem=11, B=PC, por exemplo 0100)
+    const uint32_t parte_fixa = 0b000000000110100;
+    // Combina o byte (deslocado para a posição correta) com a parte fixa
+    uint32_t fetch_op = (static_cast<uint32_t>(byte_valor) << 15) | parte_fixa;
+    microcodigo.push_back(fetch_op);
+
+    microcodigo.push_back(0b00110100011000010101000); // MDR = TOS = H; wr
+    return microcodigo;
+}
+
+vector<uint32_t> traduzir_dup() {
+    vector<uint32_t> microcodigo;
+    // MAR = SP = SP + 1
+    microcodigo.push_back(0b00110101000001001000100);
+    // MDR = TOS; wr
+    microcodigo.push_back(0b00110100001000010100111);
+    return microcodigo;
+}
+
+void processarArquivoIJVM(const string& arq_instrucoes, const string& arq_saida, Registradores& regs, Memoria& mem) {
+    // Limpa o arquivo de log no início da execução
+    ofstream limpar(arq_saida, ios::trunc);
+    limpar.close();
+
+    vector<string> linhas = lerLinhasDeArquivo(arq_instrucoes);
+
+    for (const auto& linha : linhas) {
+        stringstream ss(linha);
+        string comando;
+        ss >> comando;
+
+        vector<uint32_t> microcodigo_numerico;
+
+        if (comando == "ILOAD") {
+            int x; ss >> x;
+            microcodigo_numerico = traduzir_iload(x);
+        } else if (comando == "BIPUSH") {
+            string byte_arg; ss >> byte_arg;
+            microcodigo_numerico = traduzir_bipush(byte_arg);
+        } else if (comando == "DUP") {
+            microcodigo_numerico = traduzir_dup();
+        }
+
+        vector<string> microcodigo_str;
+        for(uint32_t mc : microcodigo_numerico) {
+            string temp = "";
+            for(int i = 22; i >= 0; i--) {
+                temp += to_string((mc >> i) & 1);
+            }
+            microcodigo_str.push_back(temp);
+        }
+        
+        vector<SinaisCompletos> sinais = extractInstructionCompleta(microcodigo_str);
+        
+        execTask(sinais, regs, mem, arq_saida);
+    }
+}

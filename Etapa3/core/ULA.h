@@ -1,8 +1,12 @@
+#ifndef ULA_H
+#define ULA_H
+
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <bitset>
 #include "../utils/arquivo.h"
+#include "Memoria.h"
 
 using namespace std;
 
@@ -20,7 +24,7 @@ struct Registradores {
     unsigned int MBR;  // 8 bits
 };
 
-// Sinais de controle completos (21 bits)
+// Sinais de controle completos (23 bits)
 struct SinaisCompletos {
     SinaisdeControle ULA;        // 8 bits
     int barramentoC;             // 9 bits 
@@ -29,11 +33,10 @@ struct SinaisCompletos {
     bool write; // 1 bit
 };
 
-// Estado da ULA e operandos
 struct EstadoULA {
     int A, B;
     int S, Carry;
-    int N, Z;  // Novos sinais N e Z
+    int N, Z;
     int regPC;
     string regIR;
     Registradores regs;
@@ -41,13 +44,11 @@ struct EstadoULA {
     string registradoresC;
 };
 
-// Funções existentes
+void processarArquivoIJVM(const string& arq_instrucoes, const string& arq_saida, Registradores& regs, Memoria& mem);
 int charParaInt(char c);
-void execTask(const string input, const string output);
-void saveLog(vector<EstadoULA> log, string nomeArquivo);
+void execTask(vector<SinaisCompletos>& inputData, Registradores& regs, Memoria& mem, const string& output);
+void saveLog(vector<EstadoULA>& log, const string& output, Memoria& mem);
 EstadoULA controlOperation(const SinaisdeControle control, EstadoULA& ULAState);
-
-// Novas funções para Etapa 2 Tarefa 2
 vector<SinaisCompletos> readSinaisCompletos(const string input, const string output);
 vector<SinaisCompletos> extractInstructionCompleta(vector<string> inst);
 int decodificadorBarramentoB(int codigo, const Registradores& regs);
@@ -56,3 +57,5 @@ vector<int> seletorBarramentoC(int codigo);
 vector<string> getRegistradoresCNomes(int codigo);
 void atualizarRegistradores(Registradores& regs, int saida, const vector<int>& habilitados);
 int signExtend8to32(int valor8bits);
+
+#endif // ULA_H
