@@ -1,76 +1,68 @@
 #include "ULA.h"
-#include <sstream>
-#include <cstdint>
-#include "Memoria.h"
 
 int charParaInt(char c) {
     return (c == '1') ? 1 : 0;
 }
 
-// Função para extrair instruções de 21 bits
-vector<SinaisCompletos> extractInstructionCompleta(vector<string> inst) {
-    vector<SinaisCompletos> inputData;
-    
-    for(auto var : inst) {
-        if(var.length() != 23) continue;
-        
-        SinaisCompletos data;
-        
-        // 8 bits da ULA (bits 0-7)
-        data.ULA.SLL8 = charParaInt(var[0]);
-        data.ULA.SRA1 = charParaInt(var[1]);
-        data.ULA.F0 = charParaInt(var[2]);
-        data.ULA.F1 = charParaInt(var[3]);
-        data.ULA.ENA = charParaInt(var[4]);
-        data.ULA.ENB = charParaInt(var[5]);
-        data.ULA.INVA = charParaInt(var[6]);
-        data.ULA.INC = charParaInt(var[7]);
-        
-        // 9 bits do barramento C (bits 8-16)
-        data.barramentoC = 0;
-        for(int i = 0; i < 9; i++) {
-            data.barramentoC |= (charParaInt(var[8 + i]) << (8 - i));
-        }
-        // 2 bits de read e write (bits 17-18)
-        data.read = (var[17] == '1');
-        data.write = (var[18] == '1');
-        
-        // 4 bits do barramento B (bits 19-22)
-        data.barramentoB = 0;
-        for(int i = 0; i < 4; i++) {
-            data.barramentoB |= (charParaInt(var[19 + i]) << (3 - i));
-        }
+array<int, 23> stringParaMicroinstrucao(const string& s) {
+    array<int, 23> micro;
+    for (size_t i = 0; i < 23 && i < s.length(); ++i) {
+        micro[i] = s[i] - '0';
+    }
+    return micro;
+}
 
-        inputData.push_back(data);
+vector<SinaisCompletos23> readSinais23Bits(const string input) {
+    vector<SinaisCompletos23> instrucoes;
+    ifstream arquivo(input);
+    string linha;
+    
+    if (!arquivo.is_open()) {
+        cerr << "Não foi possível abrir o arquivo: " << input << endl;
+        return instrucoes;
     }
     
-    return inputData;
+    while (getline(arquivo, linha)) {
+        // Remover espaços e caracteres inválidos
+        linha.erase(remove_if(linha.begin(), linha.end(), ::isspace), linha.end());
+        if (linha.empty()) continue;
+        
+        if (linha.length() == 23) {
+            bool valida = true;
+            for (char c : linha) {
+                if (c != '0' && c != '1') {
+                    valida = false;
+                    break;
+                }
+            }
+            
+            if (valida) {
+                SinaisCompletos23 instrucao;
+                instrucao.bits = stringParaMicroinstrucao(linha);
+                instrucoes.push_back(instrucao);
+            }
+        }
+    }
+    
+    arquivo.close();
+    return instrucoes;
 }
 
-// Função para ler sinais completos
-vector<SinaisCompletos> readSinaisCompletos(const string input, const string output){
-    vector<string> inputString = lerArquivo(input, output);
-    return extractInstructionCompleta(inputString);
-}
-
-// Decodificador do barramento B
-int decodificadorBarramentoB(int codigo, const Registradores& regs) {
+int32_t decodificadorBarramentoB(uint8_t codigo, const Registradores& regs) {
     switch(codigo) {
         case 0: return regs.MDR;
         case 1: return regs.PC;
-        case 2: return signExtend8to32(regs.MBR);  // MBR com extensão de sinal
-        case 3: return regs.MBR & 0xFF;            // MBRU sem extensão de sinal
+        case 2: return static_cast<int32_t>(static_cast<int8_t>(regs.MBR)); // MBR com sinal
+        case 3: return static_cast<int32_t>(regs.MBR); // MBR sem sinal
         case 4: return regs.SP;
         case 5: return regs.LV;
         case 6: return regs.CPP;
         case 7: return regs.TOS;
-        case 8: return regs.OPC;
-        default: return 0;
+        default: return regs.OPC;
     }
 }
 
-// Obter nome do registrador B
-string getRegistradorBNome(int codigo) {
+string getRegistradorBNome(uint8_t codigo) {
     switch(codigo) {
         case 0: return "MDR";
         case 1: return "PC";
@@ -80,43 +72,45 @@ string getRegistradorBNome(int codigo) {
         case 5: return "LV";
         case 6: return "CPP";
         case 7: return "TOS";
-        case 8: return "OPC";
-        default: return "NONE";
+        default: return "OPC";
     }
 }
 
-// Seletor do barramento C
 vector<int> seletorBarramentoC(int codigo) {
     vector<int> habilitados;
-    if(codigo & 0x001) habilitados.push_back(0);  // MAR
-    if(codigo & 0x002) habilitados.push_back(1);  // MDR
-    if(codigo & 0x004) habilitados.push_back(2);  // PC
-    if(codigo & 0x008) habilitados.push_back(3);  // SP
-    if(codigo & 0x010) habilitados.push_back(4);  // LV
-    if(codigo & 0x020) habilitados.push_back(5);  // CPP
-    if(codigo & 0x040) habilitados.push_back(6);  // TOS
-    if(codigo & 0x080) habilitados.push_back(7);  // OPC
-    if(codigo & 0x100) habilitados.push_back(8);  // H
+    if(codigo & 0x100) habilitados.push_back(8); // H
+    if(codigo & 0x080) habilitados.push_back(7); // OPC
+    if(codigo & 0x040) habilitados.push_back(6); // TOS
+    if(codigo & 0x020) habilitados.push_back(5); // CPP
+    if(codigo & 0x010) habilitados.push_back(4); // LV
+    if(codigo & 0x008) habilitados.push_back(3); // SP
+    if(codigo & 0x004) habilitados.push_back(2); // PC
+    if(codigo & 0x002) habilitados.push_back(1); // MDR
+    if(codigo & 0x001) habilitados.push_back(0); // MAR
     return habilitados;
 }
 
-// Obter nomes dos registradores C
-vector<string> getRegistradoresCNomes(int codigo) {
+string getRegistradoresCNomes(int codigo) {
     vector<string> nomes;
-    if(codigo & 0x001) nomes.push_back("MAR");
-    if(codigo & 0x002) nomes.push_back("MDR");
-    if(codigo & 0x004) nomes.push_back("PC");
-    if(codigo & 0x008) nomes.push_back("SP");
-    if(codigo & 0x010) nomes.push_back("LV");
-    if(codigo & 0x020) nomes.push_back("CPP");
-    if(codigo & 0x040) nomes.push_back("TOS");
-    if(codigo & 0x080) nomes.push_back("OPC");
     if(codigo & 0x100) nomes.push_back("H");
-    return nomes;
+    if(codigo & 0x080) nomes.push_back("OPC");
+    if(codigo & 0x040) nomes.push_back("TOS");
+    if(codigo & 0x020) nomes.push_back("CPP");
+    if(codigo & 0x010) nomes.push_back("LV");
+    if(codigo & 0x008) nomes.push_back("SP");
+    if(codigo & 0x004) nomes.push_back("PC");
+    if(codigo & 0x002) nomes.push_back("MDR");
+    if(codigo & 0x001) nomes.push_back("MAR");
+    
+    string resultado;
+    for (size_t i = 0; i < nomes.size(); ++i) {
+        if (!resultado.empty()) resultado += ", ";
+        resultado += nomes[i];
+    }
+    return resultado.empty() ? "Nenhum" : resultado;
 }
 
-// Atualizar registradores
-void atualizarRegistradores(Registradores& regs, int saida, const vector<int>& habilitados) {
+void atualizarRegistradores(Registradores& regs, int32_t saida, const vector<int>& habilitados) {
     for(int reg : habilitados) {
         switch(reg) {
             case 0: regs.MAR = saida; break;
@@ -132,258 +126,323 @@ void atualizarRegistradores(Registradores& regs, int saida, const vector<int>& h
     }
 }
 
-// Extensão de sinal de 8 para 32 bits
-int signExtend8to32(int valor8bits) {
-    if(valor8bits & 0x80) {  // Se bit de sinal está ativo
-        return valor8bits | 0xFFFFFF00;
+void carregarRegistradores(const string& arquivo, Registradores& regs) {
+    ifstream file(arquivo);
+    if (!file.is_open()) {
+        cerr << "ERRO: Não foi possível abrir arquivo de registradores: " << arquivo << endl;
+        return;
     }
-    return valor8bits & 0xFF;
+    
+    map<string, int32_t> valores;
+    string linha;
+    
+    while (getline(file, linha)) {
+        size_t pos = linha.find('=');
+        if (pos == string::npos) continue;
+        
+        string nome = linha.substr(0, pos);
+        string valorBinario = linha.substr(pos + 1);
+        
+        // Remover espaços
+        nome.erase(remove_if(nome.begin(), nome.end(), ::isspace), nome.end());
+        valorBinario.erase(remove_if(valorBinario.begin(), valorBinario.end(), ::isspace), valorBinario.end());
+        
+        if (!valorBinario.empty()) {
+            valores[nome] = stoll(valorBinario, nullptr, 2);
+        }
+    }
+    
+    // Atribuir valores aos registradores
+    regs.MAR = valores["mar"];
+    regs.MDR = valores["mdr"];
+    regs.PC = valores["pc"];
+    regs.MBR = static_cast<uint8_t>(valores["mbr"]);
+    regs.SP = valores["sp"];
+    regs.LV = valores["lv"];
+    regs.CPP = valores["cpp"];
+    regs.TOS = valores["tos"];
+    regs.OPC = valores["opc"];
+    regs.H = valores["h"];
+    
+    file.close();
 }
 
-// Operação de controle modificada
-EstadoULA controlOperation(const SinaisdeControle control, EstadoULA& ULAState){
+bool lerMemoria32Bin(const string& path, vector<int32_t>& MEM) {
+    ifstream fin(path);
+    if (!fin) return false;
+    
+    MEM.clear();
+    string line;
+    
+    while (fin >> line) {
+        if (line.size() == 32) {
+            MEM.push_back(stoll(line, nullptr, 2));
+        }
+    }
+    return true;
+}
+
+string conversor_binario(int32_t valor) {
+    string s(32, '0');
+    for (int i = 0; i < 32; i++) {
+        if (valor & (1 << (31 - i))) {
+            s[i] = '1';
+        }
+    }
+    return s;
+}
+
+EstadoULA controlOperation(const SinaisdeControle control, EstadoULA& ULAState) {
     EstadoULA result = ULAState;
     
-    int A = ULAState.A;
-    int B = ULAState.B;
+    int32_t A = ULAState.A;
+    int32_t B = ULAState.B;
     
     if (control.ENA == 0) A = 0;
     if (control.ENB == 0) B = 0;
     if (control.INVA == 1) A = ~A;
     
-    if (control.INC == 1) result.Carry = 1;
-    else result.Carry = 0;
-    
+    // Operações da ULA
     if (control.F0 == 0 && control.F1 == 0) {
         result.S = A & B;
     } else if (control.F0 == 0 && control.F1 == 1) {
         result.S = A | B;
     } else if (control.F0 == 1 && control.F1 == 0) {
-        result.S = A ^ B;
+        result.S = ~B;
     } else if (control.F0 == 1 && control.F1 == 1) {
-        long long soma = (long long)A + (long long)B + (long long)result.Carry;
-        result.S = (int)soma;
-        result.Carry = (soma > 0xFFFFFFFF || soma < 0) ? 1 : 0;
+        uint64_t soma = (uint64_t)(uint32_t)A + (uint64_t)(uint32_t)B + (uint64_t)control.INC;
+        result.S = (int32_t)soma;
+        result.Carry = (soma > 0xFFFFFFFF) ? 1 : 0;
     }
     
-    // Operações de shift
+    // Shifts
     if (control.SLL8 == 1) {
-        result.S = (result.S << 8);
-    } else if (control.SRA1 == 1) {
-        result.S = (result.S >> 1);
+        result.S = result.S << 8;
+    }
+    if (control.SRA1 == 1) {
+        result.S = result.S >> 1;
     }
     
-    // Sinais N e Z
     result.N = (result.S < 0) ? 1 : 0;
     result.Z = (result.S == 0) ? 1 : 0;
     
     return result;
 }
 
-// Execução da tarefa modificada
-void execTask(vector<SinaisCompletos>& inputData, Registradores& regs, Memoria& mem, const string& output) {
-    vector<EstadoULA> log;
-    EstadoULA ULAState;
-    ULAState.regs = regs; // Usa o estado inicial dos registradores
-
-    int ciclo = 0;
-
-    for (const auto& instrucao : inputData) {
-        Registradores estadoInicialRegs = ULAState.regs;
-
-        // --- Formar IR de 23 bits para o log (SEU ESTILO) ---
-        string ir = "";
-        ir += to_string(instrucao.ULA.SLL8) + to_string(instrucao.ULA.SRA1);
-        ir += to_string(instrucao.ULA.F0) + to_string(instrucao.ULA.F1);
-        ir += to_string(instrucao.ULA.ENA) + to_string(instrucao.ULA.ENB);
-        ir += to_string(instrucao.ULA.INVA) + to_string(instrucao.ULA.INC);
+void executarMicroinstrucoes(vector<SinaisCompletos23>& microinstrucoes, 
+                           Registradores& regs, vector<int32_t>& MEM, 
+                           ofstream& saida, int& ciclo_global) {
+    
+    for (const auto& instrucao : microinstrucoes) {
+        saida << "--- Microinstrução " << ciclo_global++ << " ---" << endl;
         
-        for(int i = 8; i >= 0; i--) { // Barramento C
-            ir += to_string((instrucao.barramentoC >> i) & 1);
-        }
+        // Converter instrução para string
+        string instrucao_str;
+        for (int bit : instrucao.bits) instrucao_str += to_string(bit);
+        saida << "Instrução (IR): " << instrucao_str << endl;
         
-        ir += to_string(instrucao.write) + to_string(instrucao.read); // Memória
-
-        for(int i = 3; i >= 0; i--) { // Barramento B
-            ir += to_string((instrucao.barramentoB >> i) & 1);
-        }
-
-        // --- CASO ESPECIAL: FETCH ---
-        if (instrucao.read && instrucao.write) {
-            string byte_imediato_str = ir.substr(0, 8);
-            uint8_t byte_imediato = 0;
-            for(int i = 0; i < 8; i++) {
-                byte_imediato |= (charParaInt(byte_imediato_str[i]) << (7-i));
+        saida << "Registradores no Início:" << endl;
+        saida << "H = " << regs.H << " OPC = " << regs.OPC << " TOS = " << regs.TOS 
+              << " CPP = " << regs.CPP << " LV = " << regs.LV << " SP = " << regs.SP 
+              << " PC = " << regs.PC << " MDR = " << regs.MDR << " MAR = " << regs.MAR 
+              << " MBR = " << (int)regs.MBR << endl;
+        
+        uint8_t codigoB = instrucao.barramentoB();
+        saida << "Barramento B comandado por: " << getRegistradorBNome(codigoB) << endl;
+        saida << "Barramento C habilitado para: " << getRegistradoresCNomes(instrucao.barramentoC()) 
+              << " | READ = " << instrucao.READ() << " WRITE = " << instrucao.WRITE() << endl;
+        
+        // CASO ESPECIAL FETCH (BIPUSH)
+        if (instrucao.READ() && instrucao.WRITE()) {
+            saida << "[FETCH] Carregando byte para MBR e H" << endl;
+            uint8_t byte_param = 0;
+            for (int i = 0; i < 8; ++i) {
+                byte_param = (byte_param << 1) | instrucao.bits[i];
+            }
+            regs.MBR = byte_param;
+            regs.H = static_cast<uint32_t>(regs.MBR);
+        } else {
+            // Operação normal da ULA
+            int32_t A = regs.H;
+            int32_t B = decodificadorBarramentoB(codigoB, regs);
+            
+            SinaisdeControle controleULA;
+            controleULA.SLL8 = instrucao.SLL8();
+            controleULA.SRA1 = instrucao.SRA1();
+            controleULA.F0 = instrucao.F0();
+            controleULA.F1 = instrucao.F1();
+            controleULA.ENA = instrucao.ENA();
+            controleULA.ENB = instrucao.ENB();
+            controleULA.INVA = instrucao.INVA();
+            controleULA.INC = instrucao.INC();
+            
+            EstadoULA estadoULA;
+            estadoULA.A = A;
+            estadoULA.B = B;
+            
+            EstadoULA resultado = controlOperation(controleULA, estadoULA);
+            
+            int32_t Sd = resultado.S;
+            if (instrucao.SLL8()) Sd <<= 8;
+            if (instrucao.SRA1()) Sd >>= 1;
+            
+            vector<int> habilitados = seletorBarramentoC(instrucao.barramentoC());
+            atualizarRegistradores(regs, Sd, habilitados);
+            
+            // Operações de memória
+            if (instrucao.READ() && !instrucao.WRITE()) {
+                saida << "[READ] MDR <- MEM[" << regs.MAR << "]";
+                if (regs.MAR >= 0 && regs.MAR < (int)MEM.size()) {
+                    saida << "(" << MEM[regs.MAR] << ")" << endl;
+                    regs.MDR = MEM[regs.MAR];
+                } else {
+                    saida << endl << "[READ][ERRO] Endereço MAR inválido: " << regs.MAR << endl;
+                }
             }
             
-            ULAState.regs.MBR = byte_imediato;
-            ULAState.regs.H = static_cast<uint32_t>(ULAState.regs.MBR);
-            ciclo++;
-            continue; 
-        }
-
-        // --- CICLO NORMAL ---
-        ULAState.A = ULAState.regs.H;
-        ULAState.B = decodificadorBarramentoB(instrucao.barramentoB, ULAState.regs);
-
-        ULAState.registradorB = getRegistradorBNome(instrucao.barramentoB);
-        vector<string> nomesC = getRegistradoresCNomes(instrucao.barramentoC);
-        ULAState.registradoresC = "";
-        for (size_t i = 0; i < nomesC.size(); i++) {
-            ULAState.registradoresC += nomesC[i];
-            if (i < nomesC.size() - 1) ULAState.registradoresC += ",";
+            if (instrucao.WRITE() && !instrucao.READ()) {
+                saida << "[WRITE] MEM[" << regs.MAR << "] <- MDR(" << regs.MDR << ")" << endl;
+                if (regs.MAR >= 0 && regs.MAR < (int)MEM.size()) {
+                    MEM[regs.MAR] = regs.MDR;
+                } else {
+                    saida << "[WRITE][ERRO] Endereço MAR inválido: " << regs.MAR << endl;
+                }
+            }
         }
         
-        EstadoULA result = controlOperation(instrucao.ULA, ULAState);
+        saida << "Registradores no Fim:" << endl;
+        saida << "H = " << regs.H << " OPC = " << regs.OPC << " TOS = " << regs.TOS 
+              << " CPP = " << regs.CPP << " LV = " << regs.LV << " SP = " << regs.SP 
+              << " PC = " << regs.PC << " MDR = " << regs.MDR << " MAR = " << regs.MAR 
+              << " MBR = " << (int)regs.MBR << endl << endl;
         
-        vector<int> habilitados = seletorBarramentoC(instrucao.barramentoC);
-        atualizarRegistradores(ULAState.regs, result.S, habilitados);
-
-        // --- LÓGICA DE MEMÓRIA ---
-        if (instrucao.write) {
-            mem.escrever(ULAState.regs.MAR, ULAState.regs.MDR);
-        } else if (instrucao.read) {
-            ULAState.regs.MDR = mem.ler(ULAState.regs.MAR);
+        saida << "Memória de Dados:" << endl;
+        for (size_t i = 0; i < MEM.size(); ++i) {
+            saida << "MEM[" << i << "] = " << conversor_binario(MEM[i]) << endl;
         }
-
-        // --- PREPARAR LOG ---
-        EstadoULA estadoParaLog;
-        estadoParaLog.regs = estadoInicialRegs;
-        estadoParaLog.S = result.S;
-        estadoParaLog.Carry = result.Carry;
-        estadoParaLog.N = result.N;
-        estadoParaLog.Z = result.Z;
-        estadoParaLog.regPC = ciclo;
-        estadoParaLog.regIR = ir;
-        estadoParaLog.registradorB = ULAState.registradorB;
-        estadoParaLog.registradoresC = ULAState.registradoresC;
-        estadoParaLog.A = ULAState.A;
-        estadoParaLog.B = ULAState.B;
-        
-        estadoParaLog.regs = ULAState.regs;
-        
-        log.push_back(estadoParaLog);
-        ciclo++;
+        saida << endl;
     }
-
-    regs = ULAState.regs;
-    saveLog(log, output, mem); 
 }
 
-// Função de salvar log
-void saveLog(vector<EstadoULA>& log, const string& output, Memoria& mem) {
-    ofstream log_file(output, ios::app);
-    if (!log_file.is_open()) {
-        cerr << "Erro ao abrir o arquivo de log: " << output << endl;
+void execTask(const string arquivoInstrucoes, const string output, 
+              const string arquivoMemoria, const string arquivoRegistradores) {
+    
+    cout << "=== INICIANDO SIMULAÇÃO MIC-1 (Modo Untitled-1.c) ===" << endl;
+    cout << "Arquivo de instruções: " << arquivoInstrucoes << endl;
+    cout << "Arquivo de saída: " << output << endl;
+    cout << "Memória: " << arquivoMemoria << endl;
+    cout << "Registradores: " << arquivoRegistradores << endl;
+
+    // 1. Carregar memória
+    vector<int32_t> MEM;
+    if (!lerMemoria32Bin(arquivoMemoria, MEM)) {
+        cerr << "ERRO: Não foi possível carregar memória inicial" << endl;
         return;
     }
 
-    string linha_sep(100, '=');
-    
-    // Log de um ciclo
-    const auto& estado = log.back();
-        
-    log_file << "CICLO " << log.size() << "\n";
-    log_file << "PC: " << estado.regPC << "\n";
-    log_file << "IR: " << estado.regIR << "\n\n";
-    
+    // 2. Carregar registradores iniciais
+    Registradores regs;
+    carregarRegistradores(arquivoRegistradores, regs);
 
-    string mbr_bin = "";
-    for (int i = 7; i >= 0; --i) {
-        mbr_bin += to_string((estado.regs.MBR >> i) & 1);
+    // 3. Abrir arquivo de instruções de alto nível
+    ifstream arquivoInstrucoesAltoNivel(arquivoInstrucoes);
+    if (!arquivoInstrucoesAltoNivel) {
+        cerr << "ERRO: Não foi possível abrir arquivo de instruções: " << arquivoInstrucoes << endl;
+        return;
     }
-    log_file << "MBR: " << mbr_bin << "\n";
-    // ...
+
+    // 4. Preparar arquivo de saída
+    ofstream saida(output);
+    int ciclo_global = 1;
+
+    const auto H_EQ_LV = stringParaMicroinstrucao("00010100100000000000101");
+    const auto H_EQ_H_MAIS_1 = stringParaMicroinstrucao("00111001100000000000000");
+    const auto MAR_EQ_H_RD = stringParaMicroinstrucao("00111000000000001010000");        
+    const auto MAR_SP_EQ_SP_MAIS_1_WR = stringParaMicroinstrucao("00110101000001001100100");
+    const auto TOS_EQ_MDR = stringParaMicroinstrucao("00110100001000000000000");
+    const auto MAR_SP_EQ_SP_MAIS_1 = stringParaMicroinstrucao("00110101000001001000100");
+    const auto MDR_EQ_TOS_WR = stringParaMicroinstrucao("00010100000000010100111");
+    const auto MDR_TOS_EQ_H_WR = stringParaMicroinstrucao("00111000001000010100000");                                     
+
+    string linha_instrucao;
     
-    // --- NOVO: LOG DA MEMÓRIA ---
-    log_file << "\nESTADO DA MEMÓRIA APÓS O CICLO:\n";
-    mem.log(log_file);
+    saida << "=== SIMULAÇÃO MIC-1 - MODO ALTO NÍVEL ===" << endl;
+    saida << "Arquivo de instruções: " << arquivoInstrucoes << endl;
+    saida << "==========================================" << endl << endl;
 
-    log_file << linha_sep << "\n";
-    
-    log_file.close();
-}
-
-// Funções de tradução
-
-vector<uint32_t> traduzir_iload(int x) {
-    vector<uint32_t> microcodigo;
-    // Usamos o prefixo 0b para definir as microinstruções diretamente como inteiros
-    // Formato: [8 ULA][9 C][2 Mem][4 B]
-    microcodigo.push_back(0b00100100100000000000101); // H = LV
-    for (int i = 0; i < x; ++i) {
-        microcodigo.push_back(0b00110101100000000001000); // H = H + 1
-    }
-    microcodigo.push_back(0b00110100000000001011000); // MAR = H; rd
-    microcodigo.push_back(0b00110101000001001100100); // MAR = SP = SP + 1; wr
-    microcodigo.push_back(0b00110100001000000000000); // TOS = MDR
-    return microcodigo;
-}
-
-vector<uint32_t> traduzir_bipush(const string& byte_str) {
-    vector<uint32_t> microcodigo;
-    microcodigo.push_back(0b00110101000001001000100); // SP = MAR = SP + 1
-
-    // Construção dinâmica da instrução FETCH
-    uint8_t byte_valor = 0;
-    for(int i = 0; i < 8; ++i) {
-        byte_valor |= (charParaInt(byte_str[i]) << (7 - i));
-    }
-    
-    // A parte fixa da instrução (C=0, Mem=11, B=PC, por exemplo 0100)
-    const uint32_t parte_fixa = 0b000000000110100;
-    // Combina o byte (deslocado para a posição correta) com a parte fixa
-    uint32_t fetch_op = (static_cast<uint32_t>(byte_valor) << 15) | parte_fixa;
-    microcodigo.push_back(fetch_op);
-
-    microcodigo.push_back(0b00110100011000010101000); // MDR = TOS = H; wr
-    return microcodigo;
-}
-
-vector<uint32_t> traduzir_dup() {
-    vector<uint32_t> microcodigo;
-    // MAR = SP = SP + 1
-    microcodigo.push_back(0b00110101000001001000100);
-    // MDR = TOS; wr
-    microcodigo.push_back(0b00110100001000010100111);
-    return microcodigo;
-}
-
-void processarArquivoIJVM(const string& arq_instrucoes, const string& arq_saida, Registradores& regs, Memoria& mem) {
-    // Limpa o arquivo de log no início da execução
-    ofstream limpar(arq_saida, ios::trunc);
-    limpar.close();
-
-    vector<string> linhas = lerLinhasDeArquivo(arq_instrucoes);
-
-    for (const auto& linha : linhas) {
-        stringstream ss(linha);
+    // 5. Ler e executar instruções de alto nível
+    while (getline(arquivoInstrucoesAltoNivel, linha_instrucao)) {
+        stringstream ss(linha_instrucao);
         string comando;
         ss >> comando;
 
-        vector<uint32_t> microcodigo_numerico;
+        vector<array<int, 23>> micro_instrucoes_para_executar;
+
+        saida << "========================================================" << endl;
+        saida << "EXECUTANDO INSTRUÇÃO DE ALTO NÍVEL: " << linha_instrucao << endl;
+        saida << "========================================================" << endl;
 
         if (comando == "ILOAD") {
-            int x; ss >> x;
-            microcodigo_numerico = traduzir_iload(x);
-        } else if (comando == "BIPUSH") {
-            string byte_arg; ss >> byte_arg;
-            microcodigo_numerico = traduzir_bipush(byte_arg);
+            int x;
+            ss >> x;
+            // Traduzir ILOAD x 
+            micro_instrucoes_para_executar.push_back(H_EQ_LV);
+            for (int i = 0; i < x; ++i) {
+                micro_instrucoes_para_executar.push_back(H_EQ_H_MAIS_1);
+            }
+            micro_instrucoes_para_executar.push_back(MAR_EQ_H_RD);
+            micro_instrucoes_para_executar.push_back(MAR_SP_EQ_SP_MAIS_1_WR);
+            micro_instrucoes_para_executar.push_back(TOS_EQ_MDR);
+
         } else if (comando == "DUP") {
-            microcodigo_numerico = traduzir_dup();
+            // Traduzir DUP
+            micro_instrucoes_para_executar.push_back(MAR_SP_EQ_SP_MAIS_1);
+            micro_instrucoes_para_executar.push_back(MDR_EQ_TOS_WR);
+
+        } else if (comando == "BIPUSH") {
+            string byte_arg;
+            ss >> byte_arg;
+
+            // Validação do argumento 
+            if (byte_arg.length() > 8 || byte_arg.find_first_not_of("01") != string::npos) {
+                cerr << "ERRO: Argumento inválido para BIPUSH: " << byte_arg << endl;
+                saida << "!!!! ERRO: Argumento inválido para BIPUSH: " << byte_arg << " !!!!\n";
+                continue;
+            }
+
+            // Adiciona zeros à esquerda se necessário
+            while (byte_arg.length() < 8) {
+                byte_arg = "0" + byte_arg;
+            }
+
+            micro_instrucoes_para_executar.push_back(MAR_SP_EQ_SP_MAIS_1);
+
+            // Criar microinstrução FETCh
+            string fetch_micro_str = byte_arg + "000000000110000";
+            micro_instrucoes_para_executar.push_back(stringParaMicroinstrucao(fetch_micro_str));
+
+            micro_instrucoes_para_executar.push_back(MDR_TOS_EQ_H_WR);
         }
 
-        vector<string> microcodigo_str;
-        for(uint32_t mc : microcodigo_numerico) {
-            string temp = "";
-            for(int i = 22; i >= 0; i--) {
-                temp += to_string((mc >> i) & 1);
-            }
-            microcodigo_str.push_back(temp);
+        // 6. Converter vector<array<int,23>> para vector<SinaisCompletos23>
+        vector<SinaisCompletos23> instrucoesBinarias;
+        for (const auto& micro_array : micro_instrucoes_para_executar) {
+            SinaisCompletos23 instrucao;
+            instrucao.bits = micro_array;
+            instrucoesBinarias.push_back(instrucao);
         }
-        
-        vector<SinaisCompletos> sinais = extractInstructionCompleta(microcodigo_str);
-        
-        execTask(sinais, regs, mem, arq_saida);
+
+        // 7. Executar as microinstruções geradas
+        if (!instrucoesBinarias.empty()) {
+            executarMicroinstrucoes(instrucoesBinarias, regs, MEM, saida, ciclo_global);
+        }
+
+        regs.PC++; 
     }
+
+    saida << "=== FIM DA SIMULAÇÃO ===" << endl;
+    saida.close();
+    arquivoInstrucoesAltoNivel.close();
+
+    cout << "Simulação concluída. Verifique " << output << endl;
 }

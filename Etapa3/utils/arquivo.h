@@ -1,15 +1,6 @@
 #include <vector>
 #include <string>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <bitset> 
-#include <string>
 
-using namespace std;
-
-vector<string> lerArquivo(const string& nomeArquivo, const string &nomeArquivoSaida);
-void writeLineInFile(string nomeArquivo, string linha);
-string paraBinario32bits(int valor);
-
-vector<string> lerLinhasDeArquivo(const string& nomeArquivo);
+std::vector<std::string> lerArquivo(const std::string& nomeArquivo, const std::string &nomeArquivoSaida);
+void writeLineInFile(std::string nomeArquivo, std::string linha);
+std::string paraBinario32bits(int valor);

@@ -1,30 +1,27 @@
 #include "Memoria.h"
-// Construtor que inicializa a memória a partir de um arquivo
+#include <stdexcept>
+
 Memoria::Memoria(const std::string& arquivo_dados) {
     std::ifstream file(arquivo_dados);
-
-    std::string linha_binaria;
-    while (getline(file, linha_binaria)) {
-        if (linha_binaria.length() == 32) {
-            uint32_t valor = std::stoul(linha_binaria, nullptr, 2);
-            this->dados.push_back(valor);
+    if (!file.is_open()) {
+        throw std::runtime_error("Não foi possível abrir arquivo de memória");
+    }
+    
+    std::string linha;
+    while (file >> linha) {
+        if (linha.length() == 32) {
+            this->dados.push_back(std::stoll(linha, nullptr, 2));
         }
     }
     file.close();
 }
-
-
-// Função de leitura
 
 uint32_t Memoria::ler(uint32_t endereco) {
     if (endereco < this->dados.size()) {
         return this->dados[endereco];
     }
     throw std::out_of_range("Endereço de memória inválido");
-    return 0;
 }
-
-// Função de escrita
 
 void Memoria::escrever(uint32_t endereco, uint32_t valor) {
     if (endereco < this->dados.size()) {
@@ -33,8 +30,6 @@ void Memoria::escrever(uint32_t endereco, uint32_t valor) {
         throw std::out_of_range("Endereço de memória inválido");
     }
 }
-
-//Função de log
 
 void Memoria::log(std::ofstream& log_file) {
     log_file << "--- Estado da Memória de Dados ---\n";

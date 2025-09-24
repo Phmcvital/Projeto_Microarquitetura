@@ -1,3 +1,3 @@
-para compilar: g++ main.cpp core/ULA.cpp utils/arquivo.cpp core/Memoria.cpp -o simulador.exe
+para compilar: g++ main.cpp core/Memoria.cpp core/ULA.cpp utils/arquivo.cpp -o out
 
-para executar: ./simulador
+para executar: ./out
