@@ -373,7 +373,7 @@ void execTask(const string arquivoInstrucoes, const string output,
 
     string linha_instrucao;
     
-    saida << "=== SIMULAÇÃO MIC-1 ===" << endl;
+    saida << "=== SIMULAÇÃO MIC ===" << endl;
     saida << "Arquivo de instruções: " << arquivoInstrucoes << endl;
     saida << "==========================================" << endl << endl;
 
