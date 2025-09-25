@@ -373,7 +373,7 @@ void execTask(const string arquivoInstrucoes, const string output,
 
     string linha_instrucao;
     
-    saida << "=== SIMULAÇÃO MIC-1 ===" << endl;
+    saida << "=== SIMULAÇÃO MIC ===" << endl;
     saida << "Arquivo de instruções: " << arquivoInstrucoes << endl;
     saida << "==========================================" << endl << endl;
 
@@ -392,7 +392,24 @@ void execTask(const string arquivoInstrucoes, const string output,
         if (comando == "ILOAD") {
             int x;
             ss >> x;
-            // microinstrucoes do iload
+            if (x < 0) {
+                saida << "!!!! ERRO: Argumento inválido para ILOAD: " << x << " !!!!\n";
+                continue;
+            }
+            if (regs.SP + 1 >= (int)MEM.size()) { // verificacao se haveria estouro de pilha
+                saida << "!!!! ERRO: ILOAD causaria estouro de pilha: SP(" << regs.SP 
+                      << ") + 1 = " << (regs.SP + 1) 
+                      << " (Limite: " << (MEM.size()-1) << ") !!!!" << endl;
+                continue;
+            }
+            if (regs.LV + x < 0 || regs.LV + x >= (int)MEM.size()) { // verificacao de endereco valido
+                saida << "!!!! ERRO: Endereço inválido para ILOAD: LV(" << regs.LV 
+                      << ") + " << x << " = " << (regs.LV + x) 
+                      << " (Limite: 0 a " << (MEM.size()-1) << ") !!!!" << endl;
+                continue;
+            }
+
+            //microinstrucoes do iload
             micro_instrucoes_para_executar.push_back(H_EQ_LV);
             for (int i = 0; i < x; ++i) {
                 micro_instrucoes_para_executar.push_back(H_EQ_H_MAIS_1);
@@ -416,7 +433,10 @@ void execTask(const string arquivoInstrucoes, const string output,
             //microinstrucoes do bipush
             string byte_arg;
             ss >> byte_arg;
-
+            if (byte_arg.empty()) {
+                saida << "!!!! ERRO: Argumento ausente para BIPUSH !!!!\n";
+                continue;
+            }
             // Validação do argumento 
             if (byte_arg.length() > 8 || byte_arg.find_first_not_of("01") != string::npos) {
                 cerr << "ERRO: Argumento inválido para BIPUSH: " << byte_arg << endl;
