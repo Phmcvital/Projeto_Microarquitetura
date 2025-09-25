@@ -241,7 +241,7 @@ void executarMicroinstrucoes(vector<SinaisCompletos23>& microinstrucoes,
         for (int bit : instrucao.bits) instrucao_str += to_string(bit);
         saida << "Instrução (IR): " << instrucao_str << endl;
         
-        saida << "Registradores no Início:" << endl;
+        saida << "Estado inicial dos registradores:" << endl;
         saida << "H = " << regs.H << " OPC = " << regs.OPC << " TOS = " << regs.TOS 
               << " CPP = " << regs.CPP << " LV = " << regs.LV << " SP = " << regs.SP 
               << " PC = " << regs.PC << " MDR = " << regs.MDR << " MAR = " << regs.MAR 
@@ -310,7 +310,7 @@ void executarMicroinstrucoes(vector<SinaisCompletos23>& microinstrucoes,
             }
         }
         
-        saida << "Registradores no Fim:" << endl;
+        saida << "Estado final dos registradores:" << endl;
         saida << "H = " << regs.H << " OPC = " << regs.OPC << " TOS = " << regs.TOS 
               << " CPP = " << regs.CPP << " LV = " << regs.LV << " SP = " << regs.SP 
               << " PC = " << regs.PC << " MDR = " << regs.MDR << " MAR = " << regs.MAR 
@@ -373,12 +373,13 @@ void execTask(const string arquivoInstrucoes, const string output,
 
     string linha_instrucao;
     
-    saida << "=== SIMULAÇÃO MIC ===" << endl;
+    saida << "=== MIC - 1===" << endl;
     saida << "Arquivo de instruções: " << arquivoInstrucoes << endl;
     saida << "==========================================" << endl << endl;
 
     // 5. Ler e executar instruções de alto nível
     while (getline(arquivoInstrucoesAltoNivel, linha_instrucao)) {
+        if (linha_instrucao.empty()) continue;
         stringstream ss(linha_instrucao);
         string comando;
         ss >> comando;
@@ -386,7 +387,7 @@ void execTask(const string arquivoInstrucoes, const string output,
         vector<array<int, 23>> micro_instrucoes_para_executar;
 
         saida << "========================================================" << endl;
-        saida << "EXECUTANDO INSTRUÇÃO: " << linha_instrucao << endl;
+        saida << "Executando: " << linha_instrucao << endl;
         saida << "========================================================" << endl;
 
         if (comando == "ILOAD") {
