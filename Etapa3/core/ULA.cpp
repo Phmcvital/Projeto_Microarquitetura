@@ -327,7 +327,6 @@ void executarMicroinstrucoes(vector<SinaisCompletos23>& microinstrucoes,
 void execTask(const string arquivoInstrucoes, const string output, 
               const string arquivoMemoria, const string arquivoRegistradores) {
     
-    cout << "=== INICIANDO SIMULAÇÃO MIC-1 (Modo Untitled-1.c) ===" << endl;
     cout << "Arquivo de instruções: " << arquivoInstrucoes << endl;
     cout << "Arquivo de saída: " << output << endl;
     cout << "Memória: " << arquivoMemoria << endl;
@@ -355,18 +354,26 @@ void execTask(const string arquivoInstrucoes, const string output,
     ofstream saida(output);
     int ciclo_global = 1;
 
+    // H = LV
     const auto H_EQ_LV = stringParaMicroinstrucao("00010100100000000000101");
+    // H = H + 1 
     const auto H_EQ_H_MAIS_1 = stringParaMicroinstrucao("00111001100000000000000");
+    // MAR = H; READ
     const auto MAR_EQ_H_RD = stringParaMicroinstrucao("00111000000000001010000");        
+    // MAR = SP; SP = SP + 1; WRITE
     const auto MAR_SP_EQ_SP_MAIS_1_WR = stringParaMicroinstrucao("00110101000001001100100");
+    // TOS = MDR
     const auto TOS_EQ_MDR = stringParaMicroinstrucao("00110100001000000000000");
+    // MAR = SP; SP = SP + 1
     const auto MAR_SP_EQ_SP_MAIS_1 = stringParaMicroinstrucao("00110101000001001000100");
+    // MDR = TOS; WRITE
     const auto MDR_EQ_TOS_WR = stringParaMicroinstrucao("00010100000000010100111");
+    // MDR = TOS; WRITE (com MBR/H já carregado)
     const auto MDR_TOS_EQ_H_WR = stringParaMicroinstrucao("00111000001000010100000");                                     
 
     string linha_instrucao;
     
-    saida << "=== SIMULAÇÃO MIC-1 - MODO ALTO NÍVEL ===" << endl;
+    saida << "=== SIMULAÇÃO MIC-1 ===" << endl;
     saida << "Arquivo de instruções: " << arquivoInstrucoes << endl;
     saida << "==========================================" << endl << endl;
 
@@ -379,13 +386,13 @@ void execTask(const string arquivoInstrucoes, const string output,
         vector<array<int, 23>> micro_instrucoes_para_executar;
 
         saida << "========================================================" << endl;
-        saida << "EXECUTANDO INSTRUÇÃO DE ALTO NÍVEL: " << linha_instrucao << endl;
+        saida << "EXECUTANDO INSTRUÇÃO: " << linha_instrucao << endl;
         saida << "========================================================" << endl;
 
         if (comando == "ILOAD") {
             int x;
             ss >> x;
-            // Traduzir ILOAD x 
+            // microinstrucoes do iload
             micro_instrucoes_para_executar.push_back(H_EQ_LV);
             for (int i = 0; i < x; ++i) {
                 micro_instrucoes_para_executar.push_back(H_EQ_H_MAIS_1);
@@ -395,11 +402,18 @@ void execTask(const string arquivoInstrucoes, const string output,
             micro_instrucoes_para_executar.push_back(TOS_EQ_MDR);
 
         } else if (comando == "DUP") {
-            // Traduzir DUP
+            //microinstrucoes do dup
+             if (regs.SP + 1 >= (int)MEM.size()) { // verificacao se haveria estouro de pilha
+                saida << "!!!! ERRO: DUP causaria estouro de pilha: SP(" << regs.SP 
+                      << ") + 1 = " << (regs.SP + 1) 
+                      << " (Limite: " << (MEM.size()-1) << ") !!!!" << endl;
+                continue;
+            }
             micro_instrucoes_para_executar.push_back(MAR_SP_EQ_SP_MAIS_1);
             micro_instrucoes_para_executar.push_back(MDR_EQ_TOS_WR);
 
         } else if (comando == "BIPUSH") {
+            //microinstrucoes do bipush
             string byte_arg;
             ss >> byte_arg;
 
@@ -437,10 +451,18 @@ void execTask(const string arquivoInstrucoes, const string output,
             executarMicroinstrucoes(instrucoesBinarias, regs, MEM, saida, ciclo_global);
         }
 
-        regs.PC++; 
+        // Incremento seguro do PC
+        if (regs.PC < (int)MEM.size() - 1) {
+            regs.PC++;
+        } else {
+            saida << "!!!! AVISO: PC atingiu o limite máximo da memória !!!!" << endl;
+            break;
+        }
     }
 
     saida << "=== FIM DA SIMULAÇÃO ===" << endl;
+     saida << "Ciclos executados: " << (ciclo_global - 1) << endl;
+    saida << "Estado final do PC: " << regs.PC << endl;
     saida.close();
     arquivoInstrucoesAltoNivel.close();
 

@@ -36,7 +36,7 @@ std::vector <string> lerArquivo(const string &nomeArquivo, const string &nomeArq
             linha.pop_back();
         }        
 
-        if (linha.length() == 21) {  // Mudança de 8 para 21 bits
+        if (linha.length() == 21) {  
             bool continuar = true;
             for (char c : linha) {
                 if (c != '0' && c != '1') {
