@@ -444,7 +444,12 @@ void execTask(const string arquivoInstrucoes, const string output,
                 saida << "!!!! ERRO: Argumento inválido para BIPUSH: " << byte_arg << " !!!!\n";
                 continue;
             }
-
+            if (regs.SP + 1 >= (int)MEM.size()) { // verificacao se haveria estouro de pilha
+                saida << "!!!! ERRO: BIPUSH causaria estouro de pilha: SP(" << regs.SP 
+                      << ") + 1 = " << (regs.SP + 1) 
+                      << " (Limite: " << (MEM.size()-1) << ") !!!!" << endl;
+                continue;
+            }
             // Adiciona zeros à esquerda se necessário
             while (byte_arg.length() < 8) {
                 byte_arg = "0" + byte_arg;
